@@ -1,0 +1,43 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.11.1
+      - name: Fetch Lightpanda and glibc
+        run: bash scripts/fetch-runtime.sh
+      - name: Build
+        run: gradle assembleRelease --no-daemon --stacktrace
+      - name: Name the APK
+        run: cp app/build/outputs/apk/release/app-release.apk lightpanda-android-arm64.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lightpanda-android-arm64
+          path: lightpanda-android-arm64.apk
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Lightpanda for Android ${{ github.ref_name }}
+          prerelease: true
+          files: lightpanda-android-arm64.apk
+          body: |
+            Unofficial Android app that runs the official Lightpanda 1.0.3 (aarch64) build.
+            Preview: built in CI, not yet confirmed on a real phone. Signed with a debug key.

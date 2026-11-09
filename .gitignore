@@ -1,0 +1,8 @@
+.gradle/
+build/
+local.properties
+*.iml
+.idea/
+tmp/
+app/src/main/jniLibs/
+app/src/main/assets/glibc/
