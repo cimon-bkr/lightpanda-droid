@@ -106,8 +106,9 @@ object Runner {
 
     /** Starts the Chrome DevTools Protocol server on 127.0.0.1. Returns an error text or null. */
     fun startServer(context: Context, listenPort: Int): String? = synchronized(lock) {
-        if (running.value) return null
-        prepare(context)?.let { return it }
+        if (running.value) return@synchronized null
+        val problem = prepare(context)
+        if (problem != null) return@synchronized problem
         val user = "lp"
         val pass = randomToken()
         val proxy = Socks5Server(user, pass).also { it.start() }
@@ -118,13 +119,13 @@ object Runner {
         } catch (e: Exception) {
             proxy.stop()
             socks = null
-            return "Could not start Lightpanda: ${e.message}"
+            return@synchronized "Could not start Lightpanda: ${e.message}"
         }
         process = p
         running.value = true
         append("Started on ws://127.0.0.1:$listenPort")
         thread(name = "lightpanda-log", isDaemon = true) {
-            p.inputStream.bufferedReader().useLines { lines -> lines.forEach { append(it) } }
+            p.inputStream.bufferedReader().useLines { lines -> lines.forEach { line -> append(line) } }
             val code = runCatching { p.waitFor() }.getOrDefault(-1)
             synchronized(lock) {
                 if (process === p) {
@@ -136,7 +137,7 @@ object Runner {
             }
             append("Stopped (exit code $code)")
         }
-        return null
+        null
     }
 
     fun stop() = synchronized(lock) {
@@ -145,7 +146,8 @@ object Runner {
 
     /** Loads one page and returns what Lightpanda printed. */
     suspend fun fetch(context: Context, url: String, format: String): String = withContext(Dispatchers.IO) {
-        prepare(context)?.let { return@withContext it }
+        val problem = prepare(context)
+        if (problem != null) return@withContext problem
         val user = "lp"
         val pass = randomToken()
         val proxy = Socks5Server(user, pass).also { it.start() }

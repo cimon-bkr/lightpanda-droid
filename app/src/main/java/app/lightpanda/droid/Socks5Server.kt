@@ -91,9 +91,10 @@ class Socks5Server(private val user: String, private val pass: String) {
             }
             val port = input.readUnsignedShort()
 
-            remote = Socket()
+            val upstream = Socket()
+            remote = upstream
             try {
-                remote.connect(InetSocketAddress(host, port), 12_000)
+                upstream.connect(InetSocketAddress(host, port), 12_000)
             } catch (_: IOException) {
                 reply(output, 5)
                 return
@@ -101,7 +102,6 @@ class Socks5Server(private val user: String, private val pass: String) {
             reply(output, 0)
             client.soTimeout = 0
 
-            val upstream = remote
             val pump = thread(name = "socks5-up", isDaemon = true) {
                 copy(client.getInputStream(), upstream.getOutputStream())
                 runCatching { upstream.shutdownOutput() }
